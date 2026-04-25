@@ -1,80 +1,191 @@
-# Allen Single-Cell RNA-seq Analysis for V1 L2/3 Inhibitory Neurons
+# Allen Brain Map scRNA-seq Marker Discovery
 
-This repository contains analyses of the Allen Brain Map single-cell RNA-seq dataset to identify a minimal set of RNA markers for distinguishing inhibitory cell types in Layer 2/3 of mouse primary visual cortex (V1) using serial smFISH.
+Computational pipeline for identifying minimal marker gene panels to distinguish Layer 2/3 GABAergic interneuron subtypes for serial smFISH experiments.
 
-## Project Goal
+## Project Structure
 
-Identify a minimal panel of RNA species (genes) that can effectively distinguish between different inhibitory interneuron subtypes in mouse V1 Layer 2/3 for use in serial single-molecule fluorescence in situ hybridization (smFISH) experiments.
+```
+├── data/
+│   ├── raw/              # Downloaded Allen data (gitignored)
+│   └── processed/        # Processed datasets (gitignored)
+├── notebooks/
+│   └── 01_marker_discovery.ipynb  # Main analysis workflow
+├── src/
+│   ├── data_loader.py    # Data download and loading utilities
+│   ├── cell_filter.py    # Cell filtering functions
+│   ├── diff_expression.py  # Differential expression analysis
+│   ├── marker_selection.py  # Marker panel optimization
+│   └── visualization.py  # Plotting utilities
+├── outputs/
+│   ├── figures/          # Generated plots
+│   └── markers/          # Marker gene lists
+└── requirements.txt      # Python dependencies
+```
 
-## Data Source
+## Installation
 
-**Allen Brain Map - Cell Types Database**
-- **URL**: https://celltypes.brain-map.org/rnaseq/mouse/v1-alm
-- **Dataset**: Mouse primary visual cortex (VISp/V1) and anterior lateral motor cortex (ALM)
-- **Technology**: Single-cell RNA-sequencing (Smart-seq)
-- **Cell types**: Comprehensive taxonomy including excitatory and inhibitory neurons, as well as non-neuronal cells
+1. Create a virtual environment:
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
 
-## Scientific Background
+2. Install dependencies:
+```bash
+pip install -r requirements.txt
+```
 
-Inhibitory interneurons in cortical Layer 2/3 comprise multiple distinct subtypes with different molecular profiles, morphologies, and functional properties. These include:
-- Parvalbumin+ (Pvalb) fast-spiking interneurons
-- Somatostatin+ (Sst) interneurons
-- Vasoactive intestinal peptide+ (Vip) interneurons
-- Additional subtypes (Lamp5, Sncg, etc.)
+## Data Download
 
-Serial smFISH allows for sequential detection of multiple RNA species in intact tissue, but practical constraints limit the number of probes that can be used. This analysis aims to optimize marker selection for maximal cell-type discrimination with minimal probes.
+Download Allen Brain Map scRNA-seq data from:
+https://celltypes.brain-map.org/rnaseq/mouse/v1-alm
 
-## Analysis Plan
+Required files:
+- **Cell metadata**: Contains cell type annotations, layer assignments, and cluster IDs
+- **Expression matrix**: Gene expression values (TPM or counts)
 
-### 1. Data Acquisition and Preprocessing
-- Download Allen Brain Map scRNA-seq data for V1
-- Filter for Layer 2/3 inhibitory neurons
-- Quality control and normalization
-
-### 2. Cell Type Identification
-- Examine existing cell-type annotations from Allen taxonomy
-- Focus on GABAergic (inhibitory) populations in L2/3
-- Validate major inhibitory subtypes present in the dataset
-
-### 3. Marker Gene Selection
-- Differential expression analysis between inhibitory subtypes
-- Identify genes with high specificity and expression levels
-- Prioritize genes suitable for smFISH probe design:
-  - High expression levels (for signal strength)
-  - High specificity (minimal cross-reactivity)
-  - Minimal overlap between markers
-
-### 4. Optimization
-- Determine minimal gene panel for maximal discrimination
-- Consider combinatorial marker strategies
-- Validate marker combinations using classifier performance
-
-### 5. Visualization and Validation
-- Generate marker expression heatmaps
-- Create confusion matrices for classification accuracy
-- Produce reference plots for experimental validation
-
-## Expected Outputs
-
-- List of candidate marker genes ranked by discriminatory power
-- Recommended minimal gene panel for serial smFISH
-- Expression profiles and cell-type specificity metrics
-- Visualization of marker combinations and their discriminatory capacity
-
-## Requirements
-
-To be determined based on analysis approach (Python/R/Jupyter notebooks)
+Save downloaded files to:
+- `data/raw/allen_metadata.csv`
+- `data/raw/allen_expression.csv`
 
 ## Usage
 
-To be added as analysis scripts are developed
+### Quick Start
+
+Run the main analysis notebook:
+```bash
+jupyter notebook notebooks/01_marker_discovery.ipynb
+```
+
+### Module Usage
+
+```python
+import sys
+sys.path.append('src')
+
+import data_loader
+import cell_filter
+import diff_expression
+import marker_selection
+
+# Load data
+metadata, expression = data_loader.load_allen_data(
+    'data/raw/allen_metadata.csv',
+    'data/raw/allen_expression.csv'
+)
+
+# Create AnnData object
+adata = data_loader.create_anndata(metadata, expression)
+
+# Filter to Layer 2/3 inhibitory neurons
+adata_l23 = cell_filter.filter_layer_23_inhibitory(
+    adata,
+    class_col='class',
+    layer_col='layer'
+)
+
+# Find marker candidates
+markers = diff_expression.find_marker_candidates(
+    adata_l23,
+    groupby='subclass',
+    min_mean_expression=2.0,
+    min_detection_freq=30.0
+)
+
+# Optimize marker panel
+optimal_markers = marker_selection.greedy_marker_selection(
+    adata_l23,
+    candidate_genes=markers['gene'].tolist(),
+    max_markers=10,
+    min_accuracy=0.95
+)
+```
+
+## Analysis Workflow
+
+### 1. Data Loading and QC
+- Load Allen Brain Map scRNA-seq data
+- Create AnnData object for analysis
+- Apply basic quality control filters
+
+### 2. Cell Filtering
+- Subset to Layer 2/3 neurons
+- Filter to inhibitory (GABAergic) cells
+- Remove low-quality cells and rare clusters
+
+### 3. Differential Expression
+- Compute cell type-specific expression statistics
+- Identify differentially expressed genes
+- Calculate specificity scores
+
+### 4. Marker Selection
+- Filter candidates by smFISH criteria:
+  - High expression (>2 TPM)
+  - High detection frequency (>30% cells)
+  - Statistical significance (FDR < 0.05)
+- Optimize minimal marker panel using greedy selection
+- Validate classification performance
+
+### 5. Validation
+- Cross-validated accuracy assessment
+- Pairwise cell type separability analysis
+- Expression pattern visualization
+
+## Output Files
+
+### Marker Gene Lists
+- `outputs/markers/optimal_marker_panel.csv`: Final selected markers with statistics
+- `outputs/markers/all_marker_candidates.csv`: All candidate markers passing filters
+- `outputs/markers/pairwise_separability.csv`: Cell type discrimination matrix
+
+### Figures
+- `outputs/figures/final_marker_heatmap.png`: Expression heatmap of selected markers
+- Additional plots generated during exploratory analysis
+
+## Key Functions
+
+### Data Loading
+- `load_allen_data()`: Load metadata and expression from CSV
+- `create_anndata()`: Create AnnData object
+- `filter_by_quality()`: Apply QC filters
+
+### Cell Filtering
+- `filter_layer_23_inhibitory()`: Subset to Layer 2/3 GABAergic neurons
+- `filter_by_subclass()`: Select specific inhibitory subtypes
+- `filter_expressed_genes()`: Remove low-expressed genes
+
+### Differential Expression
+- `find_differential_genes()`: One-vs-rest differential expression
+- `calculate_specificity_scores()`: Compute gene specificity metrics
+- `find_marker_candidates()`: Identify smFISH-suitable markers
+
+### Marker Selection
+- `greedy_marker_selection()`: Forward feature selection
+- `exhaustive_panel_search()`: Test all combinations (small panels)
+- `score_marker_panel()`: Evaluate classification accuracy
+- `calculate_pairwise_separability()`: Compute cell type discrimination
+
+## Notes
+
+### smFISH Marker Criteria
+Selected markers are optimized for smFISH detection:
+- **Expression level**: ≥2 TPM for reliable signal
+- **Detection frequency**: ≥30% cells in target type
+- **Specificity**: High fold-change vs other types
+- **Statistical support**: FDR < 0.05
+
+### Allen Data Format
+- **Smart-seq2 protocol**: Full-length transcript sequencing
+- **Hierarchical taxonomy**: class → subclass → cluster
+- **Pre-computed annotations**: Cell types and layers already assigned
+- **Expression units**: Typically TPM (transcripts per million)
 
 ## References
 
-- Tasic, B., et al. (2018). Shared and distinct transcriptomic cell types across neocortical areas. Nature, 563(7729), 72-78.
-- Yao, Z., et al. (2021). A taxonomy of transcriptomic cell types across the isocortex and hippocampal formation. Cell, 184(12), 3222-3241.
-- Allen Institute for Brain Science (2015). Allen Cell Types Database. Available from: celltypes.brain-map.org
+- Allen Institute Cell Types Database: https://celltypes.brain-map.org/
+- Scanpy: https://scanpy.readthedocs.io/
+- Tasic et al. (2018) Nature: Shared and distinct transcriptomic cell types across neocortical areas
 
-## License
+## Contact
 
-See [LICENSE](LICENSE) file for details.
+For questions about this analysis pipeline, see CLAUDE.md for project details.

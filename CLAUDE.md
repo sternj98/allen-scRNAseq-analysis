@@ -23,7 +23,7 @@ This is a new repository. The expected structure will include:
 ## Analysis Workflow
 
 ### Expected Analysis Steps
-1. **Data Download**: Obtain Allen Brain Map scRNA-seq metadata and expression matrices for V1
+1. **Access and make basic visualizations of data**: Load and visualize Allen Brain Map scRNA-seq metadata and expression matrices for V1. data has been downloaded and is available at the directory: '/mnt/nasquatch/data/analysis/RNAseq/allenV1_SMART-seq'
 2. **Cell Filtering**: Subset to Layer 2/3 inhibitory neurons based on Allen taxonomy annotations
 3. **Differential Expression**: Identify genes that distinguish between inhibitory subtypes
 4. **Marker Selection**: Prioritize genes by expression level, specificity, and suitability for smFISH
@@ -31,7 +31,7 @@ This is a new repository. The expected structure will include:
 6. **Validation**: Test classifier performance with selected marker combinations
 
 ### Typical Python/R Environments
-This project will likely use:
+This project will use:
 - **Python**: scanpy, pandas, numpy, matplotlib/seaborn for scRNA-seq analysis
 - **Jupyter notebooks** for exploratory analysis and visualization
 
