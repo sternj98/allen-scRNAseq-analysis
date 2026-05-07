@@ -296,6 +296,8 @@ def load_allen_filtered(
     class_col: str = "class",
     target_layers: Optional[List[str]] = None,
     layer_col: str = "brain_subregion",
+    target_clusters: Optional[List[str]] = None,
+    cluster_col: str = "cluster",
     genes_path: Optional[str] = None,
     layer_name: Optional[str] = None,
     obsm_paths: Optional[Dict[str, str]] = None,
@@ -327,6 +329,12 @@ def load_allen_filtered(
         Allen brain_subregion values are 'L2/3', 'L5', 'L6', etc.
     layer_col : str
         Metadata column for cortical layer
+    target_clusters : list of str, optional
+        Keep only cells whose cluster_col value is in this list
+        (e.g., ['L2/3 IT VISp Agmat', 'L2/3 IT VISp Adamts2']).
+        Pass None to skip cluster filtering.
+    cluster_col : str
+        Metadata column for cluster identity (default: 'cluster')
     genes_path : str, optional
         Path to genes-rows.csv for gene annotations
     layer_name : str, optional
@@ -375,20 +383,25 @@ def load_allen_filtered(
     if target_layers and layer_col in metadata.columns:
         mask &= metadata[layer_col].isin(target_layers)
 
+    if target_clusters is not None and cluster_col in metadata.columns:
+        mask &= metadata[cluster_col].isin(target_clusters)
+
     target_ids = metadata.index[mask].tolist()
     n_total = len(metadata)
     print(
         f"Metadata filter: {len(target_ids)} of {n_total} cells selected "
-        f"(class={target_class!r}, layers={target_layers})"
+        f"(class={target_class!r}, layers={target_layers}, clusters={target_clusters})"
     )
 
     if len(target_ids) == 0:
         avail_class = metadata[class_col].unique().tolist() if class_col in metadata.columns else "N/A"
         avail_layer = metadata[layer_col].unique().tolist() if layer_col in metadata.columns else "N/A"
+        avail_cluster = metadata[cluster_col].unique().tolist() if cluster_col in metadata.columns else "N/A"
         raise ValueError(
             f"No cells matched the filter criteria.\n"
             f"  Available {class_col}: {avail_class}\n"
-            f"  Available {layer_col}: {avail_layer}"
+            f"  Available {layer_col}: {avail_layer}\n"
+            f"  Available {cluster_col}: {avail_cluster}"
         )
 
     # ── Step 3: load only the target cell columns from expression CSV ─────────
